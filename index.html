@@ -1,0 +1,240 @@
+<!DOCTYPE html><html lang="ja"><head>
+    <meta charset="UTF-8">
+    <title>水溶液たんてい・理科室編</title>
+    <style>
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            text-align: center; 
+            background-image: url('https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=2070');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            padding: 10px; 
+            color: #333; 
+            font-size: 24px; 
+        }
+
+        #game-container { 
+            background: rgba(255, 255, 255, 0.95);
+            max-width: 850px; 
+            margin: 0 auto; 
+            padding: 30px; 
+            border-radius: 40px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
+            position: relative; 
+            min-height: 750px; 
+        }
+        
+        .header-info { display: flex; justify-content: space-between; align-items: center; background: #ecf0f1; padding: 20px 40px; border-radius: 20px; margin-bottom: 20px; border: 2px solid #bdc3c7; }
+        .timer { font-size: 40px; font-weight: bold; color: #e74c3c; }
+        .score { font-size: 36px; color: #2980b9; }
+
+        #char-area { display: flex; align-items: center; background: #e8f5e9; padding: 20px; border-radius: 20px; margin-bottom: 20px; border: 4px solid #a5d6a7; min-height: 120px; }
+        #char-icon { font-size: 80px; margin-right: 20px; }
+        #char-msg { font-size: 28px; text-align: left; font-weight: 900; color: #1b5e20; line-height: 1.5; }
+
+        #visual-box { height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px dashed #bdc3c7; margin-bottom: 20px; border-radius: 25px; background: rgba(255, 255, 255, 0.8); position: relative; }
+        #visual-result { font-size: 32px; font-weight: bold; margin-top: 10px; }
+        
+        /* 正解アニメーション */
+        #correct-flash {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: #ff4757;
+            font-weight: bold;
+            text-shadow: 0 0 20px #fff;
+            display: none;
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        /* リトマス紙の表示修正：文字を消して色だけに */
+        .litmus-pair { display: flex; gap: 50px; }
+        .paper-set { display: flex; flex-direction: column; align-items: center; }
+        .litmus-paper { 
+            width: 80px; height: 160px; 
+            border: 3px solid #555; 
+            border-radius: 4px; 
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .paper-label { font-size: 18px; margin-top: 8px; font-weight: bold; color: #666; }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        button { padding: 25px; cursor: pointer; border-radius: 20px; border: none; font-size: 28px; font-weight: bold; transition: 0.2s; box-shadow: 0 6px 0 #d4ac0d; }
+        .action-btn { background: #f1c40f; color: #2c3e50; }
+        .action-btn:active { transform: translateY(6px); box-shadow: none; }
+        
+        .ans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .ans-btn { background: #3498db; color: white; font-size: 26px; box-shadow: 0 6px 0 #21618c; }
+
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.98); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 40px; z-index: 10; padding: 20px; }
+        .lv-btn { margin: 15px; width: 500px; padding: 30px; font-size: 32px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer; border: none; }
+    </style></head><body><audio id="sound-correct" src="https://actions.google.com/sounds/v1/cartoon/trumpet_ding.ogg"></audio><audio id="sound-wrong" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
+
+<div id="game-container">
+    <div id="overlay">
+        <h1 id="overlay-title" style="font-size: 60px;">🔍 水溶液たんてい</h1>
+        <p id="overlay-msg" style="font-size: 32px;">レベルを えらんでね！</p>
+        <div id="menu-btns">
+            <button class="lv-btn" style="background:#2ecc71" onclick="startGame(1)">【初級】リトマス紙でとく！</button><br>
+            <button class="lv-btn" style="background:#f39c12" onclick="startGame(2)">【中級】じょうはつも使う！</button><br>
+            <button class="lv-btn" style="background:#e74c3c" onclick="startGame(3)">【上級】すべてを見わけろ！</button>
+        </div>
+        <button id="back-home" class="lv-btn" style="display:none; background:#95a5a6;" onclick="showHome()">ホームにもどる</button>
+    </div>
+
+    <div class="header-info">
+        <div class="timer">じかん: <span id="time-left">--</span></div>
+        <div class="score">せいかい: <span id="score-val">0</span></div>
+    </div>
+    
+    <div id="char-area">
+        <div id="char-icon">👨‍🏫</div>
+        <div id="char-msg">ここにアドバイスが 出るよ！</div>
+    </div>
+
+    <div id="visual-box">
+        <div id="correct-flash">✨正解！！✨</div>
+        <div id="flask-icon" style="font-size: 100px;">🧪</div>
+        <div id="visual-result">じっけんしよう！</div>
+    </div>
+
+    <div id="action-area" class="btn-grid"></div>
+
+    <div style="font-weight:bold; margin-bottom:10px; font-size: 30px;">【正体はどれかな？】</div>
+    <div id="ans-area" class="ans-grid"></div>
+</div>
+
+<script>
+const allLiquids = [
+    { name: "食塩水", litmus: "中性", residue: "白", metal: "なし", smell: "なし", lv: 1 },
+    { name: "塩酸", litmus: "酸性", residue: "なし", metal: "あり", smell: "あり", lv: 1 },
+    { name: "アンモニア水", litmus: "アルカリ性", residue: "なし", metal: "なし", smell: "あり", lv: 1 },
+    { name: "炭酸水", litmus: "酸性", residue: "なし", metal: "なし", smell: "なし", lv: 2 },
+    { name: "重曹水", litmus: "アルカリ性", residue: "白", metal: "なし", smell: "なし", lv: 2 },
+    { name: "石灰水", litmus: "アルカリ性", residue: "白", metal: "なし", smell: "なし", lv: 3 },
+    { name: "酢", litmus: "酸性", residue: "なし", metal: "なし", smell: "あり", lv: 3 }
+];
+
+let target, score, timeLeft, timerId, currentLevel;
+
+function showHome() { document.location.reload(); }
+
+function startGame(level) {
+    currentLevel = level;
+    score = 0;
+    timeLeft = level === 1 ? 90 : (level === 2 ? 60 : 45);
+    document.getElementById('overlay').style.display = 'none';
+    
+    const actArea = document.getElementById('action-area');
+    actArea.innerHTML = `<button class="action-btn" onclick="conduct('litmus')">リトマス紙</button>`;
+    if(level >= 2) actArea.innerHTML += `<button class="action-btn" onclick="conduct('evaporate')">じょうはつ</button>`;
+    if(level >= 3) {
+        actArea.innerHTML += `<button class="action-btn" onclick="conduct('metal')">アルミ</button>`;
+        actArea.innerHTML += `<button class="action-btn" onclick="conduct('smell')">におい</button>`;
+        actArea.style.gridTemplateColumns = "1fr 1fr";
+    } else {
+        actArea.style.gridTemplateColumns = level === 2 ? "1fr 1fr" : "1fr";
+    }
+
+    updateUI();
+    nextQuestion();
+    if(timerId) clearInterval(timerId);
+    timerId = setInterval(tick, 1000);
+}
+
+function tick() {
+    timeLeft--;
+    document.getElementById('time-left').innerText = timeLeft;
+    if(timeLeft <= 0) endGame();
+}
+
+function nextQuestion() {
+    const list = allLiquids.filter(l => l.lv <= currentLevel);
+    target = list[Math.floor(Math.random() * list.length)];
+    document.getElementById('visual-result').innerText = "実験して正体をあてよう！";
+    
+    const msg = document.getElementById('char-msg');
+    if(currentLevel === 1) {
+        msg.innerText = "リトマス紙の変化を見よう！青が赤くなれば酸性、赤が青くなればアルカリ性だよ！";
+    } else if(currentLevel === 2) {
+        msg.innerText = "じょうはつさせて何かが残るかな？何も残らなければ気体が溶けている証拠だ！";
+    } else {
+        msg.innerText = "すべての実験を使いこなそう！においやアルミ缶の溶け方も大事なヒントだよ！";
+    }
+
+    const ansArea = document.getElementById('ans-area');
+    ansArea.innerHTML = "";
+    list.forEach(l => {
+        ansArea.innerHTML += `<button class="ans-btn" onclick="check('${l.name}')">${l.name}</button>`;
+    });
+}
+
+function conduct(type) {
+    const res = document.getElementById('visual-result');
+    if(type === 'litmus') {
+        let redPaperColor = "#ffcdd2"; // 元の薄い赤
+        let bluePaperColor = "#bbdefb"; // 元の薄い青
+
+        if (target.litmus === '酸性') {
+            bluePaperColor = "#f44336"; // 青が赤に
+        } else if (target.litmus === 'アルカリ性') {
+            redPaperColor = "#2196f2"; // 赤が青に
+        }
+        
+        res.innerHTML = `
+            <div class="litmus-pair">
+                <div class="paper-set">
+                    <div class="litmus-paper" style="background:${redPaperColor};"></div>
+                    <div class="paper-label">赤リトマス紙</div>
+                </div>
+                <div class="paper-set">
+                    <div class="litmus-paper" style="background:${bluePaperColor};"></div>
+                    <div class="paper-label">青リトマス紙</div>
+                </div>
+            </div>`;
+    } else if(type === 'evaporate') {
+        res.innerHTML = `<span style="font-size:80px;">🔥</span><br>${target.residue === '白' ? "白い粉が残った！" : "何も残らない"}`;
+    } else if(type === 'metal') {
+        res.innerHTML = `<span style="font-size:80px;">🫧</span><br>${target.metal === 'あり' ? "あわを出して溶けた！" : "変化なし"}`;
+    } else if(type === 'smell') {
+        res.innerHTML = `<span style="font-size:80px;">👃</span><br>${target.smell === 'あり' ? "ツンとするにおい！" : "においはない"}`;
+    }
+}
+
+function check(name) {
+    const flash = document.getElementById('correct-flash');
+    if(name === target.name) {
+        score++;
+        document.getElementById('sound-correct').play().catch(()=>{});
+        
+        // 正解演出を表示
+        flash.style.display = 'block';
+        setTimeout(() => {
+            flash.style.display = 'none';
+            nextQuestion();
+        }, 800);
+        
+    } else {
+        timeLeft -= 5;
+        document.getElementById('sound-wrong').play().catch(()=>{});
+        document.getElementById('visual-result').innerHTML = "<span style='color:red;'>❌ まちがい！ (-5秒)</span>";
+    }
+    updateUI();
+}
+
+function updateUI() {
+    document.getElementById('score-val').innerText = score;
+}
+
+function endGame() {
+    clearInterval(timerId);
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('overlay-title').innerText = "しゅうりょう！";
+    document.getElementById('overlay-msg').innerText = `正解数： ${score}問`;
+    document.getElementById('menu-btns').style.display = 'none';
+    document.getElementById('back-home').style.display = 'block';
+}
+</script></body></html>
